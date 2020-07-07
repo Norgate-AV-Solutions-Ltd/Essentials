@@ -1,19 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;
+﻿using System.Linq;
 using Crestron.SimplSharpPro;
 using Crestron.SimplSharpPro.DeviceSupport;
-
 using PepperDash.Core;
+using PepperDash.Essentials.Core.Bridges;
 
 namespace PepperDash.Essentials.Core
 {
 	/// <summary>
 	/// A bridge class to cover the basic features of GenericBase hardware
 	/// </summary>
-	public class CrestronGenericBaseDevice : Device, IOnline, IHasFeedback, ICommunicationMonitor, IUsageTracking
+	public abstract class CrestronGenericBaseDevice : EssentialsDevice, IOnline, IHasFeedback, ICommunicationMonitor, IUsageTracking
 	{
 		public virtual GenericBase Hardware { get; protected set; }
 
@@ -32,21 +28,19 @@ namespace PepperDash.Essentials.Core
 		/// </summary>
 		public bool PreventRegistration { get; protected set; }
 
-		public CrestronGenericBaseDevice(string key, string name, GenericBase hardware)
-			: base(key, name)
-		{
+	    protected CrestronGenericBaseDevice(string key, string name, GenericBase hardware)
+            : base(key, name)
+        {
             Feedbacks = new FeedbackCollection<Feedback>();
 
-			Hardware = hardware;
-			IsOnline = new BoolFeedback("IsOnlineFeedback", () => Hardware.IsOnline);
-			IsRegistered = new BoolFeedback("IsRegistered", () => Hardware.Registered);
-			IpConnectionsText = new StringFeedback("IpConnectionsText", () => 
-				string.Join(",", Hardware.ConnectedIpList.Select(cip => cip.DeviceIpAddress).ToArray()));
+            Hardware = hardware;
+            IsOnline = new BoolFeedback("IsOnlineFeedback", () => Hardware.IsOnline);
+            IsRegistered = new BoolFeedback("IsRegistered", () => Hardware.Registered);
+            IpConnectionsText = new StringFeedback("IpConnectionsText", () => Hardware.ConnectedIpList != null ? string.Join(",", Hardware.ConnectedIpList.Select(cip => cip.DeviceIpAddress).ToArray()) : string.Empty);
+            AddToFeedbackList(IsOnline, IpConnectionsText);
 
-            AddToFeedbackList(IsOnline, IsRegistered, IpConnectionsText);
-
-			CommunicationMonitor = new CrestronGenericBaseCommunicationMonitor(this, hardware, 120000, 300000);
-		}
+            CommunicationMonitor = new CrestronGenericBaseCommunicationMonitor(this, hardware, 120000, 300000);
+        }
 
 		/// <summary>
 		/// Make sure that overriding classes call this!
@@ -65,9 +59,16 @@ namespace PepperDash.Essentials.Core
 					//Debug.Console(0, this, "ERROR: Cannot register Crestron device: {0}", response);
 					return false;
 				}
+
+                IsRegistered.FireUpdate();
 			}
 
-            Hardware.OnlineStatusChange += new OnlineStatusChangeEventHandler(Hardware_OnlineStatusChange);
+            foreach (var f in Feedbacks)
+            {
+                f.FireUpdate();
+            }
+
+            Hardware.OnlineStatusChange += Hardware_OnlineStatusChange;
             CommunicationMonitor.Start();    
 
 			return true;
@@ -82,10 +83,14 @@ namespace PepperDash.Essentials.Core
 			CommunicationMonitor.Stop();
 			Hardware.OnlineStatusChange -= Hardware_OnlineStatusChange;
 
-			return Hardware.UnRegister() == eDeviceRegistrationUnRegistrationResponse.Success;
+			var success = Hardware.UnRegister() == eDeviceRegistrationUnRegistrationResponse.Success;
+
+            IsRegistered.FireUpdate();
+
+            return success;
 		}
-	
-        /// <summary>
+
+	    /// <summary>
         /// Adds feedback(s) to the list
         /// </summary>
         /// <param name="newFbs"></param>
@@ -93,26 +98,23 @@ namespace PepperDash.Essentials.Core
         {
             foreach (var f in newFbs)
             {
-                if (f != null)
+                if (f == null) continue;
+
+                if (!Feedbacks.Contains(f))
                 {
-                    if (!Feedbacks.Contains(f))
-                    {
-                        Feedbacks.Add(f);
-                    }
+                    Feedbacks.Add(f);
                 }
             }
         }
 
 		void Hardware_OnlineStatusChange(GenericBase currentDevice, OnlineOfflineEventArgs args)
 		{
-            if (args.DeviceOnLine)
+            Debug.Console(2, this, "OnlineStatusChange Event.  Online = {0}", args.DeviceOnLine);
+            foreach (var feedback in Feedbacks)
             {
-                foreach (var feedback in Feedbacks)
-                {
-                    if (feedback != null)
-                        feedback.FireUpdate();
-                }
-            }
+                if (feedback != null)
+                    feedback.FireUpdate();
+            }         
 		}
 
 		#region IStatusMonitor Members
@@ -126,6 +128,17 @@ namespace PepperDash.Essentials.Core
 
         #endregion
 	}
+
+    public abstract class CrestronGenericBridgeableBaseDevice : CrestronGenericBaseDevice, IBridgeAdvanced
+    {
+        protected CrestronGenericBridgeableBaseDevice(string key, string name, GenericBase hardware) : base(key, name, hardware)
+        {
+        }
+
+
+        public abstract void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge);
+    }
+
 
 	//***********************************************************************************
 	public class CrestronGenericBaseDeviceEventIds

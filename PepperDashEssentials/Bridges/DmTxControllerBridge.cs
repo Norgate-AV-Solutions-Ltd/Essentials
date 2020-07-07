@@ -14,7 +14,7 @@ using PepperDash.Essentials.DM;
 
 using Newtonsoft.Json;
 
-namespace PepperDash.Essentials.Bridges
+namespace PepperDash.Essentials.Core.Bridges
 {
     public static class DmTxControllerApiExtensions
     {
@@ -22,7 +22,7 @@ namespace PepperDash.Essentials.Bridges
         {
             DmTxControllerJoinMap joinMap = new DmTxControllerJoinMap();
 
-            var joinMapSerialized = JoinMapHelper.GetJoinMapForDevice(joinMapKey);
+            var joinMapSerialized = JoinMapHelper.GetSerializedJoinMapForDevice(joinMapKey);
 
             if (!string.IsNullOrEmpty(joinMapSerialized))
                 joinMap = JsonConvert.DeserializeObject<DmTxControllerJoinMap>(joinMapSerialized);
@@ -57,7 +57,7 @@ namespace PepperDash.Essentials.Bridges
 
                 trilist.UShortInput[joinMap.HdcpSupportCapability].UShortValue = (ushort)tx.HdcpSupportCapability;
 
-                if(txR.InputPorts[DmPortName.HdmiIn] != null)
+                if (txR.InputPorts[DmPortName.HdmiIn] != null)
                 {
                     var inputPort = txR.InputPorts[DmPortName.HdmiIn];
 
@@ -71,7 +71,7 @@ namespace PepperDash.Essentials.Bridges
                         SetHdcpCapabilityAction(hdcpTypeSimple, port, joinMap.Port1HdcpState, trilist);
                     }
                 }
-                
+
                 if (txR.InputPorts[DmPortName.HdmiIn1] != null)
                 {
                     var inputPort = txR.InputPorts[DmPortName.HdmiIn1];
@@ -102,6 +102,22 @@ namespace PepperDash.Essentials.Bridges
                     }
                 }
 
+            }
+
+            var txFreeRun = tx as IHasFreeRun;
+            if (txFreeRun != null)
+            {
+                txFreeRun.FreeRunEnabledFeedback.LinkInputSig(trilist.BooleanInput[joinMap.FreeRunEnabled]);
+                trilist.SetBoolSigAction(joinMap.FreeRunEnabled, new Action<bool>(b => txFreeRun.SetFreeRunEnabled(b)));
+            }
+
+            var txVga = tx as IVgaBrightnessContrastControls;
+            {
+                txVga.VgaBrightnessFeedback.LinkInputSig(trilist.UShortInput[joinMap.VgaBrightness]);
+                txVga.VgaContrastFeedback.LinkInputSig(trilist.UShortInput[joinMap.VgaContrast]);
+
+                trilist.SetUShortSigAction(joinMap.VgaBrightness, new Action<ushort>(u => txVga.SetVgaBrightness(u)));
+                trilist.SetUShortSigAction(joinMap.VgaContrast, new Action<ushort>(u => txVga.SetVgaContrast(u)));
             }
         }
 

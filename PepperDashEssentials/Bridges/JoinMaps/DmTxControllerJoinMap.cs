@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;
 using PepperDash.Essentials.Core;
 
 namespace PepperDash.Essentials.Bridges
 {
+    [Obsolete("Please use version PepperDash.Essentials.Core.Bridges")]
     public class DmTxControllerJoinMap : JoinMapBase
     {
         #region Digitals
@@ -18,6 +15,10 @@ namespace PepperDash.Essentials.Bridges
         /// High when video sync is detected
         /// </summary>
         public uint VideoSyncStatus { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public uint FreeRunEnabled { get; set; }
         #endregion
 
         #region Analogs
@@ -41,6 +42,16 @@ namespace PepperDash.Essentials.Bridges
         /// Sets and reports the current HDCP state for the corresponding input port
         /// </summary>
         public uint Port2HdcpState { get; set; }
+
+        /// <summary>
+        /// Sets and reports the current VGA Brightness level
+        /// </summary>
+        public uint VgaBrightness { get; set; }
+
+        /// <summary>
+        /// Sets and reports the current VGA Contrast level
+        /// </summary>
+        public uint VgaContrast { get; set; }
         #endregion
 
         #region Serials
@@ -56,6 +67,7 @@ namespace PepperDash.Essentials.Bridges
             // Digital
             IsOnline = 1;
             VideoSyncStatus = 2;
+            FreeRunEnabled = 3;
             // Serial
             CurrentInputResolution = 1;
             // Analog
@@ -64,6 +76,8 @@ namespace PepperDash.Essentials.Bridges
             HdcpSupportCapability = 3;
             Port1HdcpState = 4;
             Port2HdcpState = 5;
+            VgaBrightness = 6;
+            VgaContrast = 7;
         }
 
         public override void OffsetJoinNumbers(uint joinStart)
@@ -72,12 +86,15 @@ namespace PepperDash.Essentials.Bridges
 
             IsOnline = IsOnline + joinOffset;
             VideoSyncStatus = VideoSyncStatus + joinOffset;
+            FreeRunEnabled = FreeRunEnabled + joinOffset;
             CurrentInputResolution = CurrentInputResolution + joinOffset;
             VideoInput = VideoInput + joinOffset;
             AudioInput = AudioInput + joinOffset;
             HdcpSupportCapability = HdcpSupportCapability + joinOffset;
             Port1HdcpState = Port1HdcpState + joinOffset;
             Port2HdcpState = Port2HdcpState + joinOffset;
+            VgaBrightness = VgaBrightness + joinOffset;
+            VgaContrast = VgaContrast + joinOffset;
         }
     }
 }
